@@ -41,7 +41,7 @@ if 'expr' not in st.session_state:
 st.subheader("🛠️ Constructor de Expresión")
 
 cols = st.columns(6)
-variables = ["A", "B", "C", "D", "E", "F"]
+variables = ["p", "q", "r", "s", "t", "u"]
 for i, v in enumerate(variables):
     with cols[i % 6]:
         if st.button(f"{v}", key=f"btn_{v}", use_container_width=True):
@@ -52,7 +52,7 @@ st.markdown("---")
 st.subheader("➕ Operadores")
 
 cols_op = st.columns(5)
-operadores = ["AND", "OR", "NOT", "XOR", "->", "<->", "(", ")", "Espacio"]
+operadores = ["∧", "∨", "¬", "->", "<->", "(", ")", "Espacio"]
 for i, op in enumerate(operadores):
     with cols_op[i % 5]:
         if st.button(f"{op}", key=f"btn_{op}", use_container_width=True):
