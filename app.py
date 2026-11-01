@@ -1,0 +1,183 @@
+﻿import streamlit as st
+import re
+from itertools import product
+import pandas as pd
+
+st.set_page_config(page_title="Calculadora Tabla de la Verdad - Grupo 6", layout="centered")
+
+# Título con el identificador del grupo
+st.title("🧮 Calculadora de Tabla de la Verdad - Grupo 6")
+st.markdown("Construye tu expresión haciendo clic. El resultado se muestra en **0 y 1**.")
+
+# --- Estado de la sesión ---
+if "expr" not in st.session_state:
+    st.session_state.expr = ""
+
+# --- UI: Constructor de Expresión ---
+st.subheader("🛠️ Constructor de Expresión")
+
+# Variables: p, q, r, s, t, u
+cols = st.columns(6)
+variables = ["p", "q", "r", "s", "t", "u"]
+for i, v in enumerate(variables):
+    with cols[i % 6]:
+        if st.button(f"{v}", key=f"btn_{v}", use_container_width=True):
+            st.session_state.expr += f" {v} "
+
+st.markdown("---")
+st.subheader("➕ Operadores")
+
+# Operadores alineados con la interfaz
+cols = st.columns(6)
+operadores = ["∧", "∨", "¬", "⊕", "→", "↔", "(", ")"]
+
+for i, op in enumerate(operadores):
+    with cols[i % 6]:
+        if st.button(op, key=f"btn_{op}", use_container_width=True):
+            st.session_state.expr += f" {op} "
+
+# Botones de control de limpieza y borrado
+col_limpiar, col_borrar, _ = st.columns()
+
+with col_limpiar:
+    if st.button("🗑️ Limpiar Todo", type="secondary", use_container_width=True):
+        st.session_state.expr = ""
+
+with col_borrar:
+    if st.button("⌫ Borrar Último", type="secondary", use_container_width=True):
+        tokens = st.session_state.expr.strip().split()
+        if tokens:
+            tokens.pop()
+            st.session_state.expr = " " + " ".join(tokens) + " "
+        else:
+            st.session_state.expr = ""
+
+# Mostrar expresión actual
+st.markdown("### Expresión actual:")
+expr_limpia = st.session_state.expr.strip()
+if not expr_limpia:
+    st.code("(vacío)", language="text")
+else:
+    st.code(expr_limpia, language="text")
+
+# Ejemplos rápidos
+st.markdown("### Ejemplos rápidos:")
+ejemplos = ["p ∧ q", "p ∨ q", "p ⊕ q", "p → q", "p ↔ q", "¬ p"]
+cols_ej = st.columns(3)
+for i, ej in enumerate(ejemplos):
+    with cols_ej[i % 3]:
+        if st.button(ej, key=f"ej_{i}", use_container_width=True):
+            st.session_state.expr = f" {ej} "
+
+st.markdown("---")
+
+# --- Evaluador Lógico Seguro (Parser Jerárquico Avanzado) ---
+def tokenize(expr: str) -> list:
+    return re.findall(r'[pqrstu]|∧|∨|¬|⊕|→|↔|\(|\)', expr)
+
+def evaluar_con_entorno(tokens: list, env: dict) -> bool:
+    # 1. Resolver paréntesis recursivamente de adentro hacia afuera
+    while "(" in tokens:
+        start = max([i for i, t in enumerate(tokens) if t == "("])
+        end = tokens.index(")", start)
+        sub_resultado = evaluar_con_entorno(tokens[start + 1:end], env)
+        tokens[start:end + 1] = [sub_resultado]
+    
+    def valor(t):
+        if isinstance(t, bool):
+            return t
+        return env.get(t, False)
+
+    # 2. Prioridad de Operadores: Negaciones (¬) de derecha a izquierda
+    while "¬" in tokens:
+        idx = max([i for i, t in enumerate(tokens) if t == "¬"])
+        if idx + 1 < len(tokens):
+            tokens[idx:idx + 2] = [not valor(tokens[idx + 1])]
+        else:
+            raise ValueError()
+
+    # 3. Conjunción (∧), Disyunción (∨) y XOR (⊕)
+    i = 0
+    while i < len(tokens):
+        if tokens[i] in ["∧", "∨", "⊕"]:
+            op = tokens[i]
+            izq = valor(tokens[i - 1])
+            der = valor(tokens[i + 1])
+            if op == "∧": res = izq and der
+            elif op == "∨": res = izq or der
+            elif op == "⊕": res = izq != der
+            tokens[i - 1:i + 2] = [res]
+            i -= 1
+        i += 1
+
+    # 4. Condicional (→)
+    i = 0
+    while i < len(tokens):
+        if tokens[i] == "→":
+            izq = valor(tokens[i - 1])
+            der = valor(tokens[i + 1])
+            res = (not izq) or der
+            tokens[i - 1:i + 2] = [res]
+            i -= 1
+        i += 1
+
+    # 5. Bicondicional (↔)
+    i = 0
+    while i < len(tokens):
+        if tokens[i] == "↔":
+            izq = valor(tokens[i - 1])
+            der = valor(tokens[i + 1])
+            res = izq == der
+            tokens[i - 1:i + 2] = [res]
+            i -= 1
+        i += 1
+
+    return valor(tokens)
+
+def extraer_variables(expr: str) -> list:
+    return sorted(list(set(re.findall(r'\b[pqrstu]\b', expr))))
+
+def generar_tabla(expr_raw: str):
+    if not expr_raw.strip():
+        return [], []
+        
+    variables = extraer_variables(expr_raw)
+    if not variables:
+        return [], []
+        
+    try:
+        tokens_originales = tokenize(expr_raw)
+    except Exception:
+        return [], []
+        
+    tabla = []
+    # Generar las combinaciones estándar (1 antes que 0)
+    for valores in product([1, 0], repeat=len(variables)):
+        entorno = {v: bool(val) for val, v in zip(valores, variables)}
+        try:
+            resultado = evaluar_con_entorno(list(tokens_originales), entorno)
+            fila = list(valores) + [1 if resultado else 0]
+            tabla.append(fila)
+        except Exception:
+            return [], []
+            
+    return variables, tabla
+
+# --- Ejecución ---
+if st.button("📊 Generar Tabla", type="primary", use_container_width=True):
+    if not st.session_state.expr.strip():
+        st.warning("⚠️ Ingresa o construye una expresión primero.")
+    else:
+        vars_list, tabla_data = generar_tabla(st.session_state.expr)
+        
+        if not vars_list or not tabla_data:
+            st.error("❌ Expresión inválida o estructura mal construida. Revisa los paréntesis y operadores.")
+        else:
+            cols_df = vars_list + ["Resultado"]
+            df = pd.DataFrame(tabla_data, columns=cols_df)
+            
+            st.success(f"✅ Tabla generada con éxito para {len(vars_list)} variable(s).")
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Descargar CSV", csv, "tabla_verdad.csv", "text/csv")
