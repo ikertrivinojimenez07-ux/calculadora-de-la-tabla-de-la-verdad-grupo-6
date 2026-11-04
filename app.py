@@ -7,12 +7,12 @@ import pandas as pd
 # CONFIGURACIÓN
 # ============================================================
 st.set_page_config(
-    page_title="Calculadora Tabla de la Verdad",
+    page_title="Calculadora Tabla de la Verdad-Grupo 6",
     page_icon="🧮",
     layout="centered"
 )
 
-st.title("🧮 Calculadora de Tabla de la Verdad")
+st.title("🧮 Calculadora de Tabla de la Verdad-Grupo 6")
 st.markdown("Construye tu expresión haciendo clic. El resultado se muestra en **0 y 1**.")
 
 # ============================================================
